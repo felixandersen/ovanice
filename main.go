@@ -17,6 +17,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/gin-gonic/gin"
+	"github.com/pborman/getopt"
 )
 
 type description struct {
@@ -181,8 +182,9 @@ func processHardwareItems(file io.Reader, handler func(*etree.Element)) bytes.Bu
     return *bytes.NewBuffer(bts)
 }
 
-func getOvaFileDefinition(filename string) ovaFileDefinition {
-    openedFile, err := ovfFile(filename)
+func getOvaFileDefinition(root string, filename string) ovaFileDefinition {
+    path := strings.Join([]string{root, filename}, "/")
+    openedFile, err := ovfFile(path)
     check(err)
     
     exampleRequest := strings.Join([]string{"/ova_files", filename}, "/")
@@ -229,6 +231,9 @@ func getOvaFileDefinition(filename string) ovaFileDefinition {
 }
 
 func main() {
+    rootPath := getopt.StringLong("path", 'p', "./", "directory containing ova-files")
+    getopt.Parse()
+
     r := gin.Default()
     r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -236,7 +241,7 @@ func main() {
 		})
     })
     r.GET("/inventory", func(c *gin.Context) {
-        file, err := os.Open("./")
+        file, err := os.Open(*rootPath)
         check(err)
         filenames, err := file.Readdirnames(0)
         check(err)
@@ -244,7 +249,7 @@ func main() {
         ovaFiles := []ovaFileDefinition{}
         for _, filename := range filenames {
             if strings.HasSuffix(filename, ".ova") {
-                f := getOvaFileDefinition(filename)
+                f := getOvaFileDefinition(*rootPath, filename)
                 ovaFiles = append(ovaFiles, f)
             }
         }
@@ -255,8 +260,9 @@ func main() {
     r.GET("/ova_files/:file", func(c *gin.Context) {
         filenameComponents := strings.Split(c.Param("file"), "/")
         filename := filenameComponents[len(filenameComponents) - 1]
+        path := strings.Join([]string{*rootPath, filename}, "/")
         if strings.HasSuffix(filename, ".ova") {
-            openedFile, err := ovfFile(filename)
+            openedFile, err := ovfFile(path)
             check(err)
             
             handler := func(item *etree.Element) {
@@ -275,7 +281,7 @@ func main() {
 
             ovfFile := processHardwareItems(openedFile, handler)
 
-            newOvaFile, err := createOvaFile(filename, ovfFile)
+            newOvaFile, err := createOvaFile(path, ovfFile)
             check(err)
 
             c.Header("Content-Description", "File Transfer")

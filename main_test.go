@@ -10,7 +10,7 @@ import (
 )
 
 func TestOvaFileDefinition(t *testing.T) {
-		ovaFile := getOvaFileDefinition("minimal_test.ova")
+		ovaFile := getOvaFileDefinition("./", "minimal_test.ova")
 		if ovaFile.Name != "minimal_test.ova" {
 			t.Errorf("ovaFile name was incorrect, got: %s, want: %s.", ovaFile.Name, "minimal_test.ova")
 		}
